@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: phone-inspect
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && python main.py
