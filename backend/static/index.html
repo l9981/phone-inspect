@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二手手机/平板验机 RAG 问答系统</title>
+    <style>
+        /* ==================== 全局样式 ==================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ==================== 顶部导航 ==================== */
+        .header {
+            background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+            color: white;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 100;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .header .subtitle {
+            font-size: 13px;
+            opacity: 0.85;
+        }
+
+        /* ==================== 主布局 ==================== */
+        .container {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        /* ==================== 左侧边栏 ==================== */
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-title {
+            padding: 14px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 1px solid #eee;
+            background: #fafafa;
+        }
+
+        .sidebar-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        /* 树节点 */
+        .tree-item {
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        .tree-item:hover {
+            background: #f0f7ff;
+        }
+
+        .tree-item.active {
+            background: #e8f0fe;
+        }
+
+        .tree-item-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px 8px 16px;
+            gap: 6px;
+            font-size: 14px;
+        }
+
+        .tree-item-header .arrow {
+            font-size: 10px;
+            color: #999;
+            transition: transform 0.2s;
+            width: 14px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .tree-item-header .arrow.expanded {
+            transform: rotate(90deg);
+        }
+
+        .tree-item-header .icon {
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .tree-item-header .label {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tree-item-header .count {
+            font-size: 11px;
+            color: #999;
+            background: #f0f0f0;
+            padding: 1px 8px;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        .tree-children {
+            display: none;
+        }
+
+        .tree-children.open {
+            display: block;
+        }
+
+        /* 型号节点（叶节点） */
+        .tree-item.leaf .tree-item-header {
+            padding-left: 38px;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .tree-item.leaf .tree-item-header:hover {
+            color: #1a73e8;
+        }
+
+        .tree-item.leaf.active .tree-item-header {
+            color: #1a73e8;
+            font-weight: 500;
+        }
+
+        /* ==================== 右侧内容 ==================== */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #f5f7fa;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+
+        /* 欢迎页 */
+        .welcome {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            text-align: center;
+        }
+
+        .welcome .big-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+
+        .welcome h2 {
+            font-size: 22px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .welcome p {
+            font-size: 14px;
+            max-width: 400px;
+            line-height: 1.6;
+        }
+
+        /* 验机表格 */
+        .model-header {
+            margin-bottom: 16px;
+        }
+
+        .model-header h2 {
+            font-size: 22px;
+            color: #222;
+        }
+
+        .model-header .brand-tag {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #1a73e8;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .inspect-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+        }
+
+        .inspect-table thead {
+            background: #f8f9fa;
+        }
+
+        .inspect-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .inspect-table td {
+            padding: 14px 16px;
+            font-size: 13px;
+            line-height: 1.6;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: top;
+        }
+
+        .inspect-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .inspect-table .category-cell {
+            font-weight: 600;
+            color: #1a73e8;
+            white-space: nowrap;
+            width: 100px;
+        }
+
+        .inspect-table .desc-cell {
+            color: #444;
+            width: 35%;
+        }
+
+        .inspect-table .note-cell {
+            color: #e37400;
+            font-size: 12px;
+            width: 30%;
+        }
+
+        .inspect-table .note-label {
+            font-weight: 600;
+            color: #d93025;
+        }
+
+        .inspect-table .img-cell {
+            text-align: center;
+            width: 120px;
+        }
+
+        .inspect-table .img-cell img {
+            width: 100px;
+            height: 75px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .inspect-table .img-cell img:hover {
+            transform: scale(1.8);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            position: relative;
+            z-index: 10;
+        }
+
+        .inspect-table .img-cell img.error {
+            display: none;
+        }
+
+        /* ==================== 问答区域 ==================== */
+        .qa-section {
+            background: #fff;
+            border-top: 1px solid #e0e0e0;
+            padding: 16px 24px;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+            flex-shrink: 0;
+        }
+
+        .qa-input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .qa-input-row input {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .qa-input-row input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
+        }
+
+        .qa-input-row button {
+            padding: 10px 24px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .qa-input-row button:hover {
+            background: #1557b0;
+        }
+
+        .qa-input-row button:disabled {
+            background: #a0c4ff;
+            cursor: not-allowed;
+        }
+
+        .qa-result {
+            margin-top: 12px;
+            display: none;
+        }
+
+        .qa-result.visible {
+            display: block;
+        }
+
+        .qa-result .answer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .qa-result .close-btn {
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 4px;
+            line-height: 1;
+        }
+
+        .qa-result .close-btn:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .qa-result .answer-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #333;
+            border-left: 4px solid #1a73e8;
+            max-height: 300px;
+            overflow-y: auto;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .qa-result .answer-box .loading-dots::after {
+            content: "...";
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: ""; }
+            40% { content: "."; }
+            60% { content: ".."; }
+            80%, 100% { content: "..."; }
+        }
+
+        .qa-result .error-box {
+            background: #fff5f5;
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 14px;
+            color: #d93025;
+            border-left: 4px solid #d93025;
+        }
+
+        .qa-result .images-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .qa-result .images-row img {
+            width: 80px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .qa-result .images-row img:hover {
+            transform: scale(2.5);
+            z-index: 20;
+            position: relative;
+        }
+
+        .qa-result .images-row img.error {
+            display: none;
+        }
+
+        /* ==================== 滚动条 ==================== */
+        .sidebar-tree::-webkit-scrollbar,
+        .content-area::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .sidebar-tree::-webkit-scrollbar-thumb,
+        .content-area::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        .sidebar-tree::-webkit-scrollbar-thumb:hover,
+        .content-area::-webkit-scrollbar-thumb:hover {
+            background: #aaa;
+        }
+
+        /* ==================== 图片查看器(lightbox) ==================== */
+        .lightbox-overlay {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+            cursor: zoom-out;
+        }
+
+        .lightbox-overlay.active {
+            display: flex;
+        }
+
+        .lightbox-overlay img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: #fff;
+            font-size: 36px;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            line-height: 1;
+        }
+
+        .lightbox-close:hover {
+            color: #ccc;
+        }
+
+        /* ==================== 响应式 ==================== */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                min-width: auto;
+                max-height: 200px;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+
+            .inspect-table .img-cell img:hover {
+                transform: scale(2);
+                z-index: 20;
+                position: relative;
+            }
+
+            .qa-section {
+                padding: 12px 16px;
+            }
+
+            .content-area {
+                padding: 12px 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .inspect-table th,
+            .inspect-table td {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== 顶部 ==================== -->
+<div class="header">
+    <div>
+        <h1>📱 二手验机 RAG 问答系统</h1>
+        <span class="subtitle">基于检索增强生成 · 手机/平板验机知识库</span>
+    </div>
+    <span class="subtitle" id="status-badge" style="font-size:12px;">加载中...</span>
+</div>
+
+<!-- ==================== 主容器 ==================== -->
+<div class="container">
+
+    <!-- 左侧品牌树 -->
+    <div class="sidebar">
+        <div class="sidebar-title">📋 品牌 / 型号目录</div>
+        <div class="sidebar-tree" id="brandTree">
+            <div style="padding:16px;color:#999;text-align:center;">加载知识库中...</div>
+        </div>
+    </div>
+
+    <!-- 右侧内容 -->
+    <div class="main-content">
+
+        <!-- 内容区 -->
+        <div class="content-area" id="contentArea">
+            <div class="welcome" id="welcomePage">
+                <div class="big-icon">🔍</div>
+                <h2>欢迎使用验机系统</h2>
+                <p>从左侧选择品牌和型号，查看详细的验机项表格。<br>或在下方输入框提问，AI 将为您解答。</p>
+            </div>
+
+            <div id="modelContent" style="display:none;">
+                <div class="model-header">
+                    <h2 id="modelTitle">-</h2>
+                    <span class="brand-tag" id="brandTag">-</span>
+                </div>
+                <table class="inspect-table" id="inspectTable">
+                    <thead>
+                        <tr>
+                            <th>验机项</th>
+                            <th>正常/故障描述</th>
+                            <th>特别注意</th>
+                            <th style="width:200px;">对比图</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <!-- 问答区域（固定在底部） -->
+        <div class="qa-section">
+            <div class="qa-input-row">
+                <input
+                    type="text"
+                    id="questionInput"
+                    placeholder="例如：iPhone 14 Pro Max 屏幕绿屏怎么检查？"
+                    autocomplete="off"
+                />
+                <button id="askBtn" onclick="askQuestion()">💬 提问</button>
+            </div>
+            <div class="qa-result" id="qaResult">
+                <div class="answer-header">
+                    <span>💬 AI 回答</span>
+                    <button class="close-btn" onclick="closeAnswer()" title="关闭回答">✕</button>
+                </div>
+                <div class="answer-box" id="answerBox"></div>
+                <div class="images-row" id="qaImages"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 前端主逻辑
+// ============================================================
+
+let brandData = null;       // 缓存知识库数据
+let currentModel = null;    // 当前选中的 { brand, model }
+
+// ==================== DOM 引用 ====================
+const brandTreeEl = document.getElementById('brandTree');
+const contentArea = document.getElementById('contentArea');
+const welcomePage = document.getElementById('welcomePage');
+const modelContent = document.getElementById('modelContent');
+const modelTitle = document.getElementById('modelTitle');
+const brandTag = document.getElementById('brandTag');
+const tableBody = document.getElementById('tableBody');
+const questionInput = document.getElementById('questionInput');
+const askBtn = document.getElementById('askBtn');
+const qaResult = document.getElementById('qaResult');
+const answerBox = document.getElementById('answerBox');
+const qaImages = document.getElementById('qaImages');
+const statusBadge = document.getElementById('status-badge');
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', () => {
+    loadBrands();
+    questionInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') askQuestion();
+    });
+});
+
+// ==================== 加载品牌树 ====================
+async function loadBrands() {
+    statusBadge.textContent = '⏳ 加载知识库...';
+    brandTreeEl.innerHTML = '<div style="padding:16px;color:#999;text-align:center;">正在加载...</div>';
+
+    try {
+        const resp = await fetch('/api/brands');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        brandData = data;
+
+        if (!data.brands || data.brands.length === 0) {
+            brandTreeEl.innerHTML = '<div style="padding:16px;color:#d93025;text-align:center;">❌ 知识库为空</div>';
+            statusBadge.textContent = '⚠️ 知识库为空';
+            return;
+        }
+
+        renderBrandTree(data.brands);
+        statusBadge.textContent = `✅ ${data.brands.length} 个品牌 · 已加载`;
+
+    } catch (err) {
+        console.error('加载品牌树失败:', err);
+        brandTreeEl.innerHTML = `
+            <div style="padding:16px;text-align:center;color:#d93025;">
+                <div style="font-size:18px;margin-bottom:8px;">❌</div>
+                <div style="font-weight:500;">加载失败</div>
+                <div style="font-size:12px;margin-top:4px;color:#999;">${err.message}</div>
+            </div>
+        `;
+        statusBadge.textContent = '❌ 加载失败';
+    }
+}
+
+// ==================== 渲染品牌树 ====================
+function renderBrandTree(brands) {
+    brandTreeEl.innerHTML = '';
+
+    brands.forEach((brand, bi) => {
+        const brandItem = document.createElement('div');
+        brandItem.className = 'tree-item';
+        brandItem.dataset.brandIndex = bi;
+
+        // 品牌头
+        const header = document.createElement('div');
+        header.className = 'tree-item-header';
+        header.innerHTML = `
+            <span class="arrow">▶</span>
+            <span class="icon">📱</span>
+            <span class="label">${brand.name}</span>
+            <span class="count">${brand.models.length}</span>
+        `;
+
+        // 型号子列表
+        const children = document.createElement('div');
+        children.className = 'tree-children';
+
+        brand.models.forEach((model, mi) => {
+            const modelItem = document.createElement('div');
+            modelItem.className = 'tree-item leaf';
+            modelItem.dataset.brandIndex = bi;
+            modelItem.dataset.modelIndex = mi;
+
+            const mHeader = document.createElement('div');
+            mHeader.className = 'tree-item-header';
+            mHeader.innerHTML = `
+                <span class="arrow" style="visibility:hidden;">▶</span>
+                <span class="icon">📄</span>
+                <span class="label">${model.name}</span>
+                <span class="count">${model.check_points.length}项</span>
+            `;
+
+            mHeader.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectModel(bi, mi);
+            });
+
+            modelItem.appendChild(mHeader);
+            children.appendChild(modelItem);
+        });
+
+        // 点击品牌展开/折叠
+        header.addEventListener('click', () => {
+            const isOpen = children.classList.toggle('open');
+            header.querySelector('.arrow').classList.toggle('expanded', isOpen);
+        });
+
+        brandItem.appendChild(header);
+        brandItem.appendChild(children);
+        brandTreeEl.appendChild(brandItem);
+    });
+}
+
+// ==================== 选择型号 ====================
+function selectModel(brandIndex, modelIndex) {
+    if (!brandData || !brandData.brands[brandIndex]) return;
+
+    const brand = brandData.brands[brandIndex];
+    const model = brand.models[modelIndex];
+    currentModel = { brand: brand.name, model: model };
+
+    // 更新选中样式
+    document.querySelectorAll('.tree-item.leaf').forEach(el => el.classList.remove('active'));
+    const target = document.querySelector(
+        `.tree-item.leaf[data-brand-index="${brandIndex}"][data-model-index="${modelIndex}"]`
+    );
+    if (target) target.classList.add('active');
+
+    // 展开父品牌
+    const parent = target?.closest('.tree-children');
+    if (parent) {
+        parent.classList.add('open');
+        const brandHeader = parent.parentElement?.querySelector('.tree-item-header .arrow');
+        if (brandHeader) brandHeader.classList.add('expanded');
+    }
+
+    // 渲染表格
+    renderModelTable(brand, model);
+}
+
+// ==================== 渲染验机表格 ====================
+function renderModelTable(brand, model) {
+    welcomePage.style.display = 'none';
+    modelContent.style.display = 'block';
+    modelTitle.textContent = `${brand.name} ${model.name}`;
+    brandTag.textContent = brand.name;
+
+    tableBody.innerHTML = '';
+
+    document.title = `${model.name} 验机表 - 二手验机 RAG 系统`;
+
+    model.check_points.forEach((point, index) => {
+        const tr = document.createElement('tr');
+
+        // 验机项
+        const tdCat = document.createElement('td');
+        tdCat.className = 'category-cell';
+        tdCat.textContent = point.category;
+
+        // 描述
+        const tdDesc = document.createElement('td');
+        tdDesc.className = 'desc-cell';
+        tdDesc.innerHTML = formatTableText(point.description);
+
+        // 特别注意
+        const tdNote = document.createElement('td');
+        tdNote.className = 'note-cell';
+        if (point.special_note) {
+            tdNote.innerHTML = '<span class="note-label">⚠️</span> ' + formatTableText(point.special_note);
+        } else {
+            tdNote.textContent = '-';
+        }
+
+        // 对比图
+        const tdImg = document.createElement('td');
+        tdImg.className = 'img-cell';
+        if (point.compare_img) {
+            let imgUrls = [];
+            // 支持单张URL和多张JSON数组
+            if (point.compare_img.startsWith('[')) {
+                try { imgUrls = JSON.parse(point.compare_img); } catch(e) { imgUrls = [point.compare_img]; }
+            } else {
+                imgUrls = [point.compare_img];
+            }
+            imgUrls.forEach((url, idx) => {
+                const container = document.createElement('div');
+                container.style.cssText = 'display:inline-block;margin:2px;text-align:center;';
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = `${point.category} 对比图${idx+1}`;
+                img.loading = 'lazy';
+                img.style.cssText = 'width:90px;height:68px;object-fit:cover;border-radius:4px;border:1px solid #eee;display:block;cursor:pointer;';
+                img.onerror = function() { this.style.display = 'none'; };
+                img.onclick = function(e) { e.stopPropagation(); openLightbox(this.src); };
+                container.appendChild(img);
+                if (imgUrls.length > 1) {
+                    const label = document.createElement('div');
+                    label.style.cssText = 'font-size:10px;color:#888;margin-top:2px;';
+                    label.textContent = idx === 0 ? '正常' : '故障';
+                    container.appendChild(label);
+                }
+                tdImg.appendChild(container);
+            });
+        } else {
+            tdImg.innerHTML = '<span style="font-size:12px;color:#999;">无</span>';
+        }
+
+        tr.appendChild(tdCat);
+        tr.appendChild(tdDesc);
+        tr.appendChild(tdNote);
+        tr.appendChild(tdImg);
+        tableBody.appendChild(tr);
+    });
+}
+
+// ==================== RAG 问答 ====================
+async function askQuestion() {
+    const question = questionInput.value.trim();
+    if (!question) {
+        questionInput.focus();
+        return;
+    }
+
+    // 显示结果区域
+    qaResult.classList.add('visible');
+    answerBox.className = 'answer-box';
+    answerBox.innerHTML = '<span class="loading-dots">🤔 正在思考</span>';
+    qaImages.innerHTML = '';
+    askBtn.disabled = true;
+    askBtn.textContent = '⏳ 处理中...';
+
+    try {
+        const resp = await fetch('/api/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question })
+        });
+
+        const result = await resp.json();
+
+        if (!resp.ok) {
+            throw new Error(result.detail || `服务器错误 (${resp.status})`);
+        }
+
+        // 显示回答
+        answerBox.className = 'answer-box';
+        answerBox.innerHTML = formatAnswer(result.answer);
+
+        // 显示相关图片
+        qaImages.innerHTML = '';
+        if (result.images && result.images.length > 0) {
+            const title = document.createElement('div');
+            title.style.cssText = 'font-size:12px;color:#666;margin-bottom:6px;font-weight:500;';
+            title.textContent = '📷 相关参考图：';
+            qaImages.appendChild(title);
+
+            result.images.forEach(url => {
+                // 处理JSON数组格式的多张图
+                let urls = [];
+                if (typeof url === 'string' && url.startsWith('[')) {
+                    try { urls = JSON.parse(url); } catch(e) { urls = [url]; }
+                } else {
+                    urls = [url];
+                }
+                urls.forEach(u => {
+                    const img = document.createElement('img');
+                    img.src = u;
+                    img.alt = '参考图';
+                    img.loading = 'lazy';
+                    img.style.cursor = 'pointer';
+                    img.onerror = function() { this.style.display = 'none'; };
+                    img.onclick = function() { openLightbox(this.src); };
+                    qaImages.appendChild(img);
+                });
+            });
+        }
+
+    } catch (err) {
+        console.error('问答请求失败:', err);
+        answerBox.className = 'answer-box error-box';
+        answerBox.innerHTML = `
+            <strong>❌ 请求失败</strong><br>
+            <span style="font-size:13px;">${err.message}</span>
+            <div style="margin-top:8px;font-size:12px;color:#888;">
+                提示：请确保后端已启动，且在 api_clients.py 中正确填入了 API Key。
+            </div>
+        `;
+    } finally {
+        askBtn.disabled = false;
+        askBtn.textContent = '💬 提问';
+    }
+}
+
+// ==================== 关闭回答 ====================
+function closeAnswer() {
+    document.getElementById('qaResult').classList.remove('visible');
+}
+
+// ==================== 格式化回答文本 ====================
+function formatAnswer(text) {
+    if (!text) return '暂无回答。';
+
+    // 将换行转为 <br>
+    let html = text.replace(/\n/g, '<br>');
+
+    // 将 **加粗** 转为 <strong>
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // 将编号列表（1. 2. 3.）美化
+    html = html.replace(/(\d+)\. /g, '<strong>$1.</strong> ');
+
+    return html;
+}
+
+// 表格文本格式化（支持 **加粗**）
+function formatTableText(text) {
+    if (!text) return '';
+    return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+}
+
+// ==================== 图片查看器(lightbox) ====================
+function openLightbox(src) {
+    const overlay = document.getElementById('lightbox');
+    const img = document.getElementById('lightboxImg');
+    img.src = src;
+    overlay.classList.add('active');
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('active');
+}
+
+// ESC键关闭
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeLightbox();
+});
+
+// ==================== 页面加载时默认打开第一个品牌 ====================
+// （通过后续触发自动选择第一个型号展示）
+setTimeout(() => {
+    if (brandData && brandData.brands && brandData.brands.length > 0) {
+        const firstBrand = brandData.brands[0];
+        if (firstBrand.models && firstBrand.models.length > 0) {
+            selectModel(0, 0);
+        }
+    }
+}, 500);
+</script>
+
+<!-- ==================== 图片查看器弹窗 ==================== -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+    <img id="lightboxImg" src="" alt="放大查看" onclick="event.stopPropagation()">
+</div>
+
+</body>
+</html>
